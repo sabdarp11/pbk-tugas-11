@@ -1,23 +1,43 @@
 <template>
   <div class="app">
-    <h1>Header</h1>
+    <h1>MyApp</h1>
     <nav>
       <button @click="showTodos">Todos</button>
-      <button @click="showPosts">Post</button>
+      <button @click="showPosts">Posts</button>
+      <button @click="showAlbums">Albums</button>
     </nav>
-    <Todos v-if="showing === 'todos'" :tasks="tasks" @add-task="addTask" @delete-task="deleteTask" @mark-completed="markCompleted" @filter-tasks="filterTasks" />
-    <Posts v-else-if="showing === 'posts'" :users="users" :posts="posts" @fetch-posts="fetchPosts" @fetch-users="fetchUsers" />
+    <div v-if="showing === 'todos'">
+      <Todos :tasks="tasks"
+             @add-task="addTask"
+             @delete-task="deleteTask"
+             @mark-completed="markCompleted"
+             @filter-tasks="filterTasks" />
+    </div>
+    <div v-else-if="showing === 'posts'">
+      <Posts :users="users"
+             :posts="posts"
+             @fetch-posts="fetchPosts"
+             @fetch-users="fetchUsers" />
+    </div>
+    <div v-else-if="showing === 'albums'">
+      <Albums :users="users"
+              :albums="albums"
+              @fetch-users="fetchUsers"
+              @fetch-user-albums="fetchUserAlbums" />
+    </div>
   </div>
 </template>
 
 <script>
-import Todos from './Todos.vue';
-import Posts from './Posts.vue';
+import Todos from './components/Todos.vue';
+import Posts from './components/Posts.vue';
+import Albums from './components/Albums.vue';
 
 export default {
   components: {
     Todos,
-    Posts
+    Posts,
+    Albums
   },
   data() {
     return {
@@ -29,6 +49,7 @@ export default {
       ],
       users: [],
       posts: [],
+      albums: []
     };
   },
   methods: {
@@ -45,13 +66,10 @@ export default {
     },
     filterTasks(filterType) {
       if (filterType === 'all') {
-        // Show all tasks
         this.showingTasks = this.tasks;
       } else if (filterType === 'active') {
-        // Show active tasks
         this.showingTasks = this.tasks.filter(task => !task.completed);
       } else if (filterType === 'completed') {
-        // Show completed tasks
         this.showingTasks = this.tasks.filter(task => task.completed);
       }
     },
@@ -61,6 +79,10 @@ export default {
     showPosts() {
       this.showing = 'posts';
       this.fetchPosts();
+    },
+    showAlbums() {
+      this.showing = 'albums';
+      this.fetchUsers();
     },
     fetchPosts() {
       fetch('https://jsonplaceholder.typicode.com/posts')
@@ -77,10 +99,29 @@ export default {
         .then(response => response.json())
         .then(users => {
           this.users = users;
+          this.fetchUserAlbums();
         })
         .catch(error => {
           console.error('Error fetching users:', error);
         });
+    },
+    fetchUserAlbums() {
+      let allAlbums = [];
+      Promise.all(this.users.map(user => {
+        return fetch(`https://jsonplaceholder.typicode.com/users/${user.id}/albums`)
+          .then(response => response.json())
+          .then(albums => {
+            albums.forEach(album => {
+              album.user = user;
+            });
+            allAlbums = allAlbums.concat(albums);
+          })
+          .catch(error => {
+            console.error(`Error fetching albums for user ${user.id}:`, error);
+          });
+      })).then(() => {
+        this.albums = allAlbums;
+      });
     }
   },
   mounted() {
@@ -88,3 +129,13 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.nav {
+  margin-bottom: 20px;
+}
+
+.nav button {
+  margin-right: 10px;
+}
+</style>
